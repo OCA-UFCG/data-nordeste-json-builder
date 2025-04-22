@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Excel para JSON - Data Nordeste</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" />
 </head>
 <body>
   <main class="container">
@@ -13,17 +14,19 @@
     </header>
 
     <form id="uploadForm" enctype="multipart/form-data" method="POST">
-      <div class="drop-zone" id="dropZone">
+      <div id="dropZone" class="drop-zone">
         <span class="material-symbols-outlined upload-icon">upload_file</span>
-        Arraste e solte seu arquivo Excel aqui
+        <span class="drop-text">Arraste e solte seu arquivo Excel aqui</span>
         <span class="drop-zone__or">ou</span>
-        <label for="fileInput" class="drop-zone__button">Selecione um arquivo</label>
-        <input type="file" id="fileInput" name="file" class="file-input" />
+        <label class="drop-zone__button">
+          Selecione um arquivo
+          <input type="file" id="fileInput" name="file" hidden />
+        </label>
       </div>
 
       <button type="submit" class="submit-button">
         <span class="material-symbols-outlined">cloud_upload</span>
-        Fazer Upload e Converter
+        Enviar e Converter
       </button>
 
       <section id="downloads" class="downloads-section">
@@ -37,91 +40,73 @@
     const form = document.getElementById('uploadForm');
     const input = document.getElementById('fileInput');
     const dropZone = document.getElementById('dropZone');
-    const dropZoneText = dropZone.querySelector('span:not(.material-symbols-outlined), .drop-zone__or, label');
+    const dropText = dropZone.querySelector('.drop-text');
     const uploadIcon = dropZone.querySelector('.upload-icon');
+    const downloads = document.getElementById('downloads');
 
-    dropZone.addEventListener('dragover', (e) => {
+    const updateDropZone = (text, icon) => {
+      dropText.textContent = text;
+      uploadIcon.textContent = icon;
+    };
+
+    dropZone.addEventListener('dragover', e => {
       e.preventDefault();
       dropZone.classList.add('drop-zone--over');
-      dropZoneText.textContent = 'Solte o arquivo aqui!';
-      uploadIcon.textContent = 'cloud_upload_done';
+      updateDropZone('Solte o arquivo aqui!', 'cloud_upload_done');
     });
 
     dropZone.addEventListener('dragleave', () => {
       dropZone.classList.remove('drop-zone--over');
-      dropZoneText.textContent = 'Arraste e solte seu arquivo Excel aqui';
-      uploadIcon.textContent = 'upload_file';
+      updateDropZone('Arraste e solte seu arquivo Excel aqui', 'upload_file');
     });
 
-    dropZone.addEventListener('drop', (e) => {
+    dropZone.addEventListener('drop', e => {
       e.preventDefault();
       dropZone.classList.remove('drop-zone--over');
       const file = e.dataTransfer.files[0];
       if (file) {
         input.files = e.dataTransfer.files;
-        dropZoneText.textContent = `Arquivo selecionado: ${file.name}`;
-        uploadIcon.textContent = 'file_present';
+        updateDropZone(`Arquivo: ${file.name}`, 'file_present');
       } else {
-        dropZoneText.textContent = 'Arraste e solte seu arquivo Excel aqui';
-        uploadIcon.textContent = 'upload_file';
+        updateDropZone('Arraste e solte seu arquivo Excel aqui', 'upload_file');
       }
     });
 
     input.addEventListener('change', () => {
-      if (input.files.length > 0) {
-        dropZoneText.textContent = `Arquivo selecionado: ${input.files[0].name}`;
-        uploadIcon.textContent = 'file_present';
-      } else {
-        dropZoneText.textContent = 'Arraste e solte seu arquivo Excel aqui';
-        uploadIcon.textContent = 'upload_file';
+      const file = input.files[0];
+      updateDropZone(
+        file ? `Arquivo: ${file.name}` : 'Arraste e solte seu arquivo Excel aqui',
+        file ? 'file_present' : 'upload_file'
+      );
+    });
+
+    form.addEventListener('submit', async e => {
+      e.preventDefault();
+      const file = input.files[0];
+      if (!file) return alert('Selecione um arquivo primeiro.');
+
+      const formData = new FormData();
+      formData.append('file', file);
+
+      try {
+        const res = await fetch('/upload', { method: 'POST', body: formData });
+        if (!res.ok) throw new Error('Falha ao enviar');
+
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+
+        downloads.innerHTML = '<h4>Conversão realizada!</h4>';
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = 'arquivos_json.zip';
+        link.textContent = 'Baixar ZIP com arquivos JSON';
+        link.className = 'download-link';
+        downloads.appendChild(link);
+      } catch (err) {
+        console.error(err);
+        alert('Erro ao processar o arquivo.');
       }
     });
-
-    form.addEventListener('submit', async (e) => {
-        e.preventDefault();
-
-        const file = input.files[0];
-        if (!file) {
-            alert("Por favor, selecione um arquivo antes de fazer o upload.");
-            return;
-        }
-
-        const formData = new FormData();
-        formData.append('file', file);
-
-        try {
-            const response = await fetch('/upload', {
-                method: 'POST',
-                body: formData
-            });
-
-            if (!response.ok) {
-                alert('Erro ao fazer upload. Verifique o arquivo.');
-                return;
-            }
-
-            const blob = await response.blob();
-
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = 'arquivos_json.zip';
-            a.textContent = 'Baixar ZIP com arquivos JSON';
-            a.classList.add('download-link');
-
-            const downloadsDiv = document.getElementById('downloads');
-            downloadsDiv.innerHTML = '';
-            const downloadTitle = document.createElement('h4');
-            downloadTitle.textContent = 'Conversão realizada!';
-            downloadsDiv.appendChild(downloadTitle);
-            downloadsDiv.appendChild(a);
-
-        } catch (error) {
-            console.error(error);
-            alert('Erro inesperado ao processar o arquivo.');
-        }
-    });
   </script>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
 </body>
 </html>

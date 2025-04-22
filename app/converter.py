@@ -3,23 +3,29 @@ import pandas as pd
 import json
 import os
 
+def format_data(raw):
+    """Formats the value as a percentage if it's between 0 and 1, else returns it as a string."""
+    if pd.isna(raw):
+        return None
+    elif isinstance(raw, (int, float)) and 0 <= raw <= 1:
+        return f"{raw * 100:.2f}".replace('.', ',') + "%"
+    return str(raw)
+
 def build_json(region_row: pd.Series, states_df: pd.DataFrame):
     indicator_title = region_row["Indicadores (cor laranja)"].strip()
     subtitle = region_row["Descrição"]
-    value = region_row["Valor_Nordeste"]
+    value = format_data(region_row["Valor_Nordeste"])
     note = region_row["Fonte"]
     panel = region_row["Painel"]
     link = region_row["Link"]
 
     data = {
-        "region": {
-            "name": "Nordeste",
-            "title": indicator_title,
-            "subtitle": subtitle,
-            "data": value,
-            "note": note,
-            "link": link
-        },
+        "region": "Nordeste",
+        "title": indicator_title,
+        "subtitle": subtitle,
+        "data": value,
+        "link": link,
+        "note": note,
         "states": []
     }
 
@@ -34,7 +40,7 @@ def build_json(region_row: pd.Series, states_df: pd.DataFrame):
 
         data["states"].append({
             "name": state_name,
-            "data": state[indicator_column],
+            "data": format_data(state[indicator_column]),
             "note": note,
             "link": link
         })
